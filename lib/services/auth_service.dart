@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:developer'; // print 대신 log를 사용하기 위해 import
 
 class AuthService with ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -56,6 +57,8 @@ class AuthService with ChangeNotifier {
       if (err.message != null) {
         message = err.message!;
       }
+      // context가 여전히 유효한지(mounted) 확인하는 코드 추가
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
@@ -63,7 +66,8 @@ class AuthService with ChangeNotifier {
         ),
       );
     } catch (err) {
-      print(err);
+      // avoid_print 경고를 해결하기 위해 log 사용
+      log('An error occurred: $err');
     } finally {
       _setLoading(false);
     }

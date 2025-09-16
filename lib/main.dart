@@ -28,7 +28,8 @@ class BoxingApp extends StatelessWidget {
           brightness: Brightness.dark,
           scaffoldBackgroundColor: const Color(0xFF1A1A1A),
           appBarTheme: const AppBarTheme(
-            color: Color(0xFF2C2C2C),
+            // 'color'를 'backgroundColor'로 수정했습니다.
+            backgroundColor: Color(0xFF2C2C2C),
             elevation: 0,
           ),
           bottomNavigationBarTheme: const BottomNavigationBarThemeData(

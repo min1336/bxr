@@ -1,54 +1,98 @@
+import 'dart:developer'; // log를 사용하기 위해 import
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'edit_profile_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
-  // 임시 데이터
-  final String nickname = "The Ghost";
-  final String weightClass = "미들급";
-  final int height = 185;
-  final int reach = 190;
-  final int wins = 12;
-  final int losses = 1;
-  final int knockouts = 8;
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  UniqueKey _key = UniqueKey();
+
+  Future<DocumentSnapshot> _getUserData() {
+    final user = FirebaseAuth.instance.currentUser;
+    return FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+  }
+
+  void _navigateToEditScreen() async {
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+    );
+
+    if (result == true) {
+      setState(() {
+        _key = UniqueKey();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildProfileHeader(context),
-          const SizedBox(height: 30),
-          Text("기본 스탯", style: Theme.of(context).textTheme.headlineSmall),
-          const Divider(color: Colors.redAccent),
-          _buildStatRow("신장 (Height)", "$height cm", Icons.height),
-          _buildStatRow("리치 (Reach)", "$reach cm", Icons.unfold_more),
-          const SizedBox(height: 30),
-          Text("전적 (Career)", style: Theme.of(context).textTheme.headlineSmall),
-          const Divider(color: Colors.redAccent),
-          _buildRecordCard(),
-          const SizedBox(height: 20),
-          Center(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // 프로필 수정 기능 구현
-              },
-              icon: const Icon(Icons.edit),
-              label: const Text("프로필 수정"),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
-            ),
+    return FutureBuilder<DocumentSnapshot>(
+      key: _key,
+      future: _getUserData(),
+      builder: (BuildContext context, AsyncSnapshot<DocumentSnapshot> snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          // 어떤 오류인지 콘솔에 출력
+          log("Firebase 데이터 로딩 오류: ${snapshot.error}");
+          return const Center(child: Text("데이터를 불러오는 중 오류가 발생했습니다."));
+        }
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return const Center(child: Text("사용자 정보를 찾을 수 없습니다."));
+        }
+
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
+        final String nickname = userData['nickname'] ?? 'N/A';
+        final String weightClass = "미들급";
+        final int height = userData['height'] ?? 0;
+        final int reach = userData['reach'] ?? 0;
+        final int wins = userData['wins'] ?? 0;
+        final int losses = userData['losses'] ?? 0;
+        final int knockouts = userData['knockouts'] ?? 0;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileHeader(context, nickname, weightClass),
+              const SizedBox(height: 30),
+              Text("기본 스탯", style: Theme.of(context).textTheme.headlineSmall),
+              const Divider(color: Colors.redAccent),
+              _buildStatRow("신장 (Height)", "$height cm", Icons.height),
+              _buildStatRow("리치 (Reach)", "$reach cm", Icons.unfold_more),
+              const SizedBox(height: 30),
+              Text("전적 (Career)", style: Theme.of(context).textTheme.headlineSmall),
+              const Divider(color: Colors.redAccent),
+              _buildRecordCard(wins, losses, knockouts),
+              const SizedBox(height: 20),
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: _navigateToEditScreen,
+                  icon: const Icon(Icons.edit),
+                  label: const Text("프로필 수정"),
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15)),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildProfileHeader(BuildContext context) {
+  Widget _buildProfileHeader(BuildContext context, String nickname, String weightClass) {
     return Row(
       children: [
         const CircleAvatar(
@@ -81,7 +125,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecordCard() {
+  Widget _buildRecordCard(int wins, int losses, int knockouts) {
     int totalFights = wins + losses;
     double winRate = totalFights == 0 ? 0 : (wins / totalFights) * 100;
 
